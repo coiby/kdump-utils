@@ -424,14 +424,14 @@ if ! is_fadump_capable; then
 
 	dracut_args+=(--no-hostonly-default-device)
 
-	if [[ $(cat /proc/sys/crypto/fips_enabled) == 1  ]]; then
+	if [[ $(cat /proc/sys/crypto/fips_enabled) == 1 ]]; then
 		dracut_args+=(--add-device "$(findmnt -n -o SOURCE --target /boot)")
 	fi
 fi
 
 # Use kdump managed dracut profile.
 [[ $kdump_dracut_confdir ]] || kdump_dracut_confdir=/lib/kdump/dracut.conf.d
-if [[ "$(dracut --help)" == *--add-confdir* ]] && [[ -d "$kdump_dracut_confdir" ]]; then
+if [[ "$(dracut --help)" == *--add-confdir* ]] && [[ -d $kdump_dracut_confdir ]]; then
 	dracut_args+=("--add-confdir" "$kdump_dracut_confdir")
 else
 	dracut_args+=(--add kdumpbase)
