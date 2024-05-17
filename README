@@ -1,4 +1,4 @@
-Adding a patch to kexec-tools
+Adding a patch to kdump-utils
 =============================
 There is a mailing list kexec@lists.fedoraproject.org where all the dicussion
 related to fedora kexec-tools happen. All the patches are posted there for
