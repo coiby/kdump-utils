@@ -56,7 +56,7 @@ depends() {
     fi
 
     if is_lvm2_thinp_dump_target; then
-        if dracut --list-modules | grep -q lvmthinpool-monitor; then
+        if grep -q lvmthinpool-monitor <<< $(dracut --list-modules); then
             add_opt_module lvmthinpool-monitor
         else
             dwarning "Required lvmthinpool-monitor modules is missing! Please upgrade dracut >= 057."
@@ -381,10 +381,18 @@ _get_hpyerv_physical_driver() {
     _get_nic_driver "$_physical_nic"
 }
 
+_get_physical_function_driver() {
+    local _physfn_dir=/sys/class/net/"$1"/device/physfn
+
+    if [[ -e "$_physfn_dir" ]]; then
+        basename "$(readlink -f "$_physfn_dir"/driver)"
+    fi
+}
+
 kdump_install_nic_driver() {
     local _netif _driver _drivers
 
-    _drivers=()
+    _drivers=('=drivers/net/phy' '=drivers/net/mdio')
 
     for _netif in $1; do
         [[ $_netif == lo ]] && continue
@@ -408,6 +416,9 @@ kdump_install_nic_driver() {
         fi
 
         _drivers+=("$_driver")
+        # For a Single Root I/O Virtualization (SR-IOV) virtual device,
+        # the driver of physical device needs to be installed as well
+        _drivers+=("$(_get_physical_function_driver "$_netif")")
     done
 
     [[ -n ${_drivers[*]} ]] || return
@@ -993,31 +1004,12 @@ ForwardToConsole=yes
 EOF
 }
 
-remove_cpu_online_rule() {
-    local file=${initdir}/usr/lib/udev/rules.d/40-redhat.rules
-
-    if [[ -f $file ]]; then
-        sed -i '/SUBSYSTEM=="cpu"/d' "$file"
-    fi
-}
-
 install() {
     declare -A unique_netifs ipv4_usage ipv6_usage
-    local arch
 
     kdump_module_init
     kdump_install_conf
     remove_sysctl_conf
-
-    # Onlining secondary cpus breaks kdump completely on KVM on Power hosts
-    # Though we use maxcpus=1 by default but 40-redhat.rules will bring up all
-    # possible cpus by default. (rhbz1270174 rhbz1266322)
-    # Thus before we get the kernel fix and the systemd rule fix let's remove
-    # the cpu online rule in kdump initramfs.
-    arch=$(uname -m)
-    if [[ "$arch" = "ppc64le" ]] || [[ "$arch" = "ppc64" ]]; then
-        remove_cpu_online_rule
-    fi
 
     if is_ssh_dump_target; then
         kdump_install_random_seed
