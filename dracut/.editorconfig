@@ -1,4 +1,3 @@
-# Use dracut code style for dracut modules
 [*]
 shell_variant = bash
 indent_style = space
