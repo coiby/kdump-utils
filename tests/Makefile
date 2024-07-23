@@ -5,7 +5,7 @@ TEST_ROOT := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 BUILD_ROOT := $(TEST_ROOT)/build
 REPO = $(shell realpath $(TEST_ROOT)/../)
 ARCH ?= $(shell arch)
-SPEC = kexec-tools.spec
+SPEC = kdump-utils.spec
 
 DIST ?= fedora
 DIST_ABR ?= f

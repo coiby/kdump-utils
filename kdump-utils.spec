@@ -1,7 +1,7 @@
 # kdump-utils has no debug source
 %global debug_package %{nil}
 Name: kdump-utils
-Version: 1.0.43
+Version: 1.0.44
 Release: 1%{?dist}
 Summary: Kernel crash dump collection utilities
 
@@ -132,15 +132,8 @@ fi
 %doc supported-kdump-targets.txt
 
 %changelog
-* Thu Jul 11 2024 Coiby <coxu@redhat.com> - 1.0.43-1
-- Install PHY and MDIO bus drivers and  the driver of physical device for a SR-IOV virtual device by @coiby
-- update 98-kexec rules for crash hotplug by @baoquan-he
-- [PATCH v2] sysconfig: add pcie_ports compat to KDUMP_COMMANDLINE_APPEND on x86_64 by @liutgnu
-- fadump/udev: do not re-register fadump if kernel hotplug ready by @sourabhjains
-- Use "grep -q <<< $(cmd)" instead of "cmd | grep -q" by @liutgnu
-- Remove default debug option by @prudo1
-- dracut-module-setup: Remove remove_cpu_online_rule() since PowerPC us… by @pfliu
-- Various fixes by @prudo1
+* Mon Jul 15 2024 Packit <hello@packit.dev> - 1.0.44-1
+- Update to version 1.0.44
 
 * Tue Oct 24 2023 Coiby <coxu@redhat.com> - 1.0.42-10
 - split from kexec-tools
