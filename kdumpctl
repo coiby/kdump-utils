@@ -173,7 +173,6 @@ rebuild_kdump_initrd()
 
 rebuild_initrd()
 {
-	local _ret
 	dinfo "Rebuilding $TARGET_INITRD"
 
 	if [[ ! -w $(dirname "$TARGET_INITRD") ]]; then
@@ -186,10 +185,6 @@ rebuild_initrd()
 	else
 		rebuild_kdump_initrd
 	fi
-	_ret=$?
-
-	set_vmcore_creation_status 'clear' "$VMCORE_CREATION_STATUS"
-	return $_ret
 }
 
 #$1: the files to be checked with IFS=' '
@@ -1048,7 +1043,6 @@ start()
 	start_dump || return
 
 	dinfo "Starting kdump: [OK]"
-	check_vmcore_creation_status
 	return 0
 }
 
@@ -1659,63 +1653,6 @@ _should_reset_crashkernel() {
 	[[ $(kdump_get_conf_val auto_reset_crashkernel) != no ]] && systemctl is-enabled kdump &> /dev/null
 }
 
-check_vmcore_creation_status()
-{
-	local _status _timestamp _status_date
-
-	[[ ${VMCORE_CREATION_NOTIFICATION,,} == "yes" ]] || return
-
-	if [[ ! -s $VMCORE_CREATION_STATUS ]]; then
-		dwarn "Notice: No vmcore creation test performed!"
-		return
-	fi
-
-	read -r _status _timestamp < "$VMCORE_CREATION_STATUS"
-	_status_date="$(date -d "@$_timestamp")"
-
-	if [[ "$_status" == "success" ]]; then
-		dinfo "Notice: Last successful vmcore creation on $_status_date"
-	else
-		dwarn "Notice: Last NOT successful vmcore creation on $_status_date"
-	fi
-}
-
-kdump_test()
-{
-	local _dir
-
-	if ! is_kernel_loaded "$DEFAULT_DUMP_MODE"; then
-		derror "Kdump needs be operational before test."
-		exit 1
-	fi
-
-	_dir=$(dirname "$VMCORE_CREATION_STATUS")
-	if ! [[ -d "$_dir" ]]; then
-		derror "Vmcore status dir $_dir not exist."
-		exit 1
-	fi
-
-	if ! lsblk $(get_mount_info SOURCE target "$_dir") > /dev/null; then
-		derror "$VMCORE_CREATION_STATUS must on local drive"
-		exit 1
-	fi
-
-	if [[ ! "$1" == "--force" ]]; then
-		read -p "DANGER!!! Will perform a kdump test by crashing the system, proceed? (y/N): " input
-		case $input in
-		[Yy] )
-			dinfo "Start kdump test..."
-			;;
-		* )
-			dinfo "Operation cancelled."
-			exit 0
-			;;
-		esac
-	fi
-	set_vmcore_creation_status 'clear' "$VMCORE_CREATION_STATUS"
-	echo c > /proc/sysrq-trigger
-}
-
 main()
 {
 	# Determine if the dump mode is kdump or fadump
@@ -1747,7 +1684,6 @@ main()
 			EXIT_CODE=3
 			;;
 		esac
-		check_vmcore_creation_status
 		exit $EXIT_CODE
 		;;
 	reload)
@@ -1792,12 +1728,8 @@ main()
 			reset_crashkernel_for_installed_kernel "$2"
 		fi
 		;;
-	test)
-		shift
-		kdump_test "$@"
-		;;
 	*)
-		dinfo $"Usage: $0 {estimate|start|stop|status|restart|reload|rebuild|reset-crashkernel|propagate|showmem|test}"
+		dinfo $"Usage: $0 {estimate|start|stop|status|restart|reload|rebuild|reset-crashkernel|propagate|showmem}"
 		exit 1
 		;;
 	esac
