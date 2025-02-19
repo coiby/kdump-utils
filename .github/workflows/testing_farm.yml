@@ -1,0 +1,25 @@
+name: Testing-farm kdump-utils tests
+
+on: [pull_request, issue_comment]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+        matrix:
+            arch: ["x86_64", "s390x", "aarch64", "ppc64le"]
+        fail-fast: false
+    steps:
+      - name: Schedule test on Testing Farm
+        uses: sclorg/testing-farm-as-github-action@v3
+        with:
+          api_key: ${{ secrets.TF_API_KEY }}
+          git_url: https://gitlab.com/coxu/kernel-tests.git
+          git_ref: testing_farm_v4_beaker
+          compose: RHEL-9.6.0-Nightly
+          arch: ${{ matrix.arch }}
+          tmt_plan_regex: "local$"
+          variables: KDUMP_UTILS_RPM=kexec-tools
+          create_issue_comment: 'true'
+          create_github_summary: 'true'
+          pull_request_status_name: 'Testing-farm kdump-utils tests for ${{ matrix.arch }}'
