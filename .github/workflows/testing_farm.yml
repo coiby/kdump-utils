@@ -1,0 +1,29 @@
+name: Testing-farm kdump-utils tests
+
+on: pull_request
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+        matrix:
+            arch: ["x86_64"]
+            distro: ["Fedora-40"]
+        fail-fast: false
+    steps:
+      - run: sleep 60 # wait for the COPR to be ready
+      - name: Schedule test on Testing Farm
+        uses: sclorg/testing-farm-as-github-action@v3
+        with:
+          api_key: ${{ secrets.TF_API_KEY }}
+          tf_scope: private
+          git_url: https://gitlab.com/coxu/kernel-tests.git
+          git_ref: testing_farm_v5_beaker
+          compose: ${{ matrix.distro }}
+          arch: ${{ matrix.arch }}
+          tmt_plan_regex: "nfs_fips$"
+          tmt_hardware: '{"hostname": "~ *.eng.*redhat.com"}'
+          variables: KDUMP_UTILS_RPM=kdump-utils*pr${{github.event.number}}*; COPR_REPO_URL=https://copr.fedorainfracloud.org/coprs/packit/${{github.repository_owner}}-kdump-utils-${{github.event.number}}/repo/fedora-40/packit-${{github.repository_owner}}-kdump-utils-${{github.event.number}}-${{ matrix.distro }}.repo; RESOURCE_URL=https://gitlab.cee.redhat.com/kernel-qe/kernel/-/raw/master/kdump/internal/internal_resources.sh; AUTO_CONFIG=auto;
+          create_issue_comment: 'true'
+          create_github_summary: 'true'
+          pull_request_status_name: 'Testing-farm kdump-utils tests for ${{ matrix.arch }} ${{ matrix.distro }}'

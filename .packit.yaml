@@ -26,7 +26,7 @@ jobs:
   - job: copr_build
     trigger: pull_request
     targets:
-      - fedora-all
+      - fedora-40
     packages:
       - kdump-utils
 
