@@ -27,6 +27,7 @@ jobs:
     trigger: pull_request
     targets:
       - fedora-all
+      - fedora-40-aarch64
     packages:
       - kdump-utils
 

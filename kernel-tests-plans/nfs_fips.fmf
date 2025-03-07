@@ -1,0 +1,18 @@
+summary: Kdump NFS dumping tests
+discover:
+  - name: tests
+    how: fmf
+    url: https://gitlab.com/coxu/kernel-tests.git
+    ref: testing_farm_v5_beaker
+    test:
+     - /kdump/install_kdump-utils
+     - /kdump/default_crashkernel
+     - /security/crypto/enable_fips
+     - /kdump/config-nfs
+     - /kdump/crash-sysrq-c
+     - /kdump/copy-nfs
+     - /kdump/analyse-crash-cmd/simple_analyse
+
+provision:
+   - name: client
+   - name: server
