@@ -1,6 +1,6 @@
 name: kdump-utils tests
 
-on: pull_request
+on: issue_comment
 
 jobs:
   format-check:

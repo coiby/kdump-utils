@@ -1,0 +1,23 @@
+name: kernel tests
+
+on: pull_request
+
+jobs:
+  tests:
+    runs-on: [self-hosted, 1]
+    strategy:
+        matrix:
+            arch: ["arch64"]
+            distro: ["Fedora-40"]
+        fail-fast: false
+    steps:
+      - run: sleep 2 # wait for the COPR to be ready
+      - uses: actions/checkout@v4
+        with:
+            fetch-depth: 0
+      - name: "${{ matrix.distro }} ${{ matrix.arch }} kernel tests"
+        run: cd kernel-tests-plans && tmt --context distro="${{ matrix.distro }}" run -a provision -h virtual -i "${{ matrix.distro }}"
+        env:
+          KDUMP_UTILS_RPM: kdump-utils*pr${{github.event.number}}*
+          CUSTOM_MIRROR: https://mirror.tuna.tsinghua.edu.cn/fedora/
+          COPR_REPO_URL: https://copr.fedorainfracloud.org/coprs/packit/${{github.repository_owner}}-kdump-utils-${{github.event.number}}/repo/fedora-40/packit-${{github.repository_owner}}-kdump-utils-${{github.event.number}}-${{ matrix.distro }}.repo
