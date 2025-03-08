@@ -1,0 +1,29 @@
+name: Testing-farm kdump-utils tests
+
+on:
+  workflow_run:
+    workflows: [rpm-build:fedora-40-x86_64]
+    types: 
+      - completed
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+        matrix:
+            arch: ["x86_64"]
+        fail-fast: false
+    steps:
+      - name: Schedule test on Testing Farm
+        uses: sclorg/testing-farm-as-github-action@v3
+        with:
+          api_key: ${{ secrets.TF_API_KEY }}
+          git_url: https://gitlab.com/coxu/kernel-tests.git
+          git_ref: testing_farm_v4_beaker
+          compose: Fedora-40
+          arch: ${{ matrix.arch }}
+          tmt_plan_regex: "nfs_fips$"
+          variables: KDUMP_UTILS_RPM=kdump-utils*${{ github.event.number }}* RESOURCE_URL=https://gitlab.cee.redhat.com/kernel-qe/kernel/-/raw/master/kdump/internal/internal_resources.sh AUTO_CONFIG=auto
+          copr: "packit/coiby-kdump-utils-${{ github.event.number }}:fedora-40-${{ matrix.arch }}"
+          create_issue_comment: 'true'
+          create_github_summary: 'true'
+          pull_request_status_name: 'Testing-farm kdump-utils tests for ${{ matrix.arch }}'

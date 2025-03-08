@@ -26,9 +26,24 @@ jobs:
   - job: copr_build
     trigger: pull_request
     targets:
-      - fedora-all
+      - centos-stream-10-x86_64
+      - centos-stream-10-aarch64
     packages:
       - kdump-utils
+
+  - job: tests
+    trigger: pull_request
+    targets:
+      - centos-stream-10
+      - centos-stream-10-aarch64
+    fmf_url: https://gitlab.com/coxu/kernel-tests.git
+    fmf_ref: testing_farm_v5_beaker
+    tmt_plan: local$
+    tf_extra_params:
+      environments:
+        - variables:
+            RESOURCE_URL: https://gitlab.cee.redhat.com/kernel-qe/kernel/-/raw/master/kdump/internal/internal_resources.sh
+            AUTO_CONFIG: auto
 
   - job: koji_build
     trigger: commit
