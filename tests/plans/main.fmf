@@ -22,15 +22,6 @@ prepare:
     script:
       - echo root:kdump | chpasswd
 
-  - name: Install built RPM
-    how: install
-    package:
-      - "$KDUMP_UTILS_RPM"
-    when: deployment_mode == package
-    where:
-      - client
-
-
 execute:
     how: tmt
     exit-first: true

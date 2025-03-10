@@ -1,7 +1,3 @@
 summary: Install kdump-utils
 test: ./test.sh
 framework: beakerlib
-enabled: false
-adjust:
-    enabled: true
-    when: deployment_mode == image

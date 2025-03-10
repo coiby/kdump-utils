@@ -37,6 +37,7 @@ rlJournalStart
     fi
 
     if [[ -n "$KDUMP_UTILS_RPM" ]]; then
+        grep -qs -E "\.rpm$"<<< "$KDUMP_UTILS_RPM" && KDUMP_UTILS_RPM="$TMT_TREE/$KDUMP_UTILS_RPM"
         if test -f /run/ostree-booted; then
             if [[ -n "$COPR_REPO_URL" ]]; then
                 rlRun "rpm-ostree install -A --allow-inactive --idempotent dnf-plugins-core -y" 0 "Install dnf-plugins-core"
