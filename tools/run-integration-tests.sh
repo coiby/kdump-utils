@@ -58,4 +58,4 @@ if [[ ! -e $test_image ]]; then
 	test_image=fedora:"$fedora_version"
 fi
 
-cd tests && tmt --context distro="fedora-${fedora_version}" --context deployment_mode="$deployment_mode" run --environment CUSTOM_MIRROR="$mirror" --environment KDUMP_UTILS_RPM="$rpm_path" -a provision -h virtual -i "$test_image"
+cd tests && tmt --context distro="fedora-${fedora_version}" --context deployment_mode="$deployment_mode" run --environment COPR_REPO_URL="$COPR_REPO_URL" --environment CUSTOM_MIRROR="$mirror" --environment KDUMP_UTILS_RPM="$rpm_path" -a provision -h virtual -i "$test_image"

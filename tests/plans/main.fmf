@@ -27,6 +27,7 @@ prepare:
     how: install
     package:
       - "$KDUMP_UTILS_RPM"
+    when: deployment_mode == package
     where:
       - client
 
