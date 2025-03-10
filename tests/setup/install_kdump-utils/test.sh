@@ -44,6 +44,8 @@ rlJournalStart
             fi
             rlRun "rpm-ostree override replace $KDUMP_UTILS_RPM" 0 "Install kdump-utils"
             rlRun "rpm-ostree apply-live --allow-replacement" 0 "Apply overrides live"
+        else
+            rlRun "dnf install $KDUMP_UTILS_RPM -y" 0 "Install kdump-utils"
         fi
     fi
     rlPhaseEnd
