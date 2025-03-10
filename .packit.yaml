@@ -21,6 +21,7 @@ jobs:
     trigger: release
     dist_git_branches:
       - fedora-all
+      - fedora-40-aarch64
 
 
   - job: copr_build

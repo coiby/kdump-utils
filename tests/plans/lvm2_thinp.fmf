@@ -2,6 +2,7 @@ summary: Kdump LVM2 provision dumping
 discover:
     how: fmf
     test:
+     - /setup/install_kdump-utils
      - /setup/default_crashkernel
      - /setup/lvm2_thinp
      - /setup/trigger_crash
