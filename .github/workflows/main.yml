@@ -37,13 +37,12 @@ jobs:
         runs-on: self-hosted
         timeout-minutes: 45
         concurrency:
-            group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.fedora_version }}-${{ matrix.test }}
+            group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.fedora_version }}-${{ matrix.deployment_mode }}
             cancel-in-progress: true
         strategy:
             matrix:
-                fedora_version: [
-                        "40", "rawhide"
-                ]
+                fedora_version: ["40", "rawhide"]
+                deployment_mode: ["package", "image"]
             fail-fast: false
         steps:
             -   name: "Checkout Repository"
@@ -51,4 +50,8 @@ jobs:
                 with:
                     fetch-depth: 0
             -   name: "${{ matrix.fedora_version }} kdump tests"
-                run: tools/run-integration-tests.sh ${{ matrix.fedora_version }}
+                run: tools/run-integration-tests.sh --fedora_version=${{ matrix.fedora_version }} --deployment_mode=${{ matrix.deployment_mode }}
+                env:
+                  KDUMP_UTILS_RPM: kdump-utils*pr${{github.event.number}}*
+                  CUSTOM_MIRROR: https://mirror.tuna.tsinghua.edu.cn/fedora/
+                  COPR_REPO_URL: https://copr.fedorainfracloud.org/coprs/packit/${{github.repository_owner}}-kdump-utils-${{github.event.number}}/repo/fedora-40/packit-${{github.repository_owner}}-kdump-utils-${{github.event.number}}-fedora-${{ matrix.fedora_version }}.repo
