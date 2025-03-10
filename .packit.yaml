@@ -26,7 +26,10 @@ jobs:
   - job: copr_build
     trigger: pull_request
     targets:
-      - fedora-all
+      - fedora-40
+      - fedora-40-rawhide
+      - fedora-40-aarch64
+      - fedora-rawhide-aarch64
     packages:
       - kdump-utils
 
