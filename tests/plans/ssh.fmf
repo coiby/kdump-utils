@@ -4,6 +4,10 @@ adjust:
   enabled: false
   when: distro == fedora-rawhide
 discover:
+  - name: Install kdump-utils
+    how: fmf
+    test:
+     - setup/install_kdump-utils
   - name: Set up crashkernel
     how: fmf
     test:

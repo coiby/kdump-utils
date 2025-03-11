@@ -3,10 +3,11 @@ enabled: true
 # Disable this plan due to https://bugzilla.redhat.com/show_bug.cgi?id=2270423
 adjust:
     enabled: false
-    when: distro == fedora
+    when: distro == fedora and deployment_mode == package
 discover:
     how: fmf
     test:
+     - /setup/install_kdump-utils
      - /setup/default_crashkernel
      - /setup/trigger_crash
      - /tests/check_vmcore/local
