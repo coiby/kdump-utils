@@ -735,6 +735,7 @@ load_kdump()
 	args+=("--initrd=$TARGET_INITRD")
 	args+=("$KDUMP_KERNEL")
 
+	prepare_luks
 	ddebug "$KEXEC ${args[*]}"
 	if $KEXEC "${args[@]}"; then
 		dinfo "kexec: loaded kdump kernel"
@@ -1049,6 +1050,27 @@ check_final_action_config()
 		return 1
 		;;
 	esac
+}
+
+LUKS_SYSFS=/sys/kernel/config/crash_dm_crypt_keys
+prepare_luks()
+{
+	local _luks_dev _count _cmds _cmd
+	declare -a _luks_devs
+
+	_luks_devs=($(get_all_kdump_crypt_dev))
+	_count=${#_luks_devs[@]}
+
+	if [[ $_count -lt 1 ]]; then
+		return
+	fi
+
+	for _luks_dev in "${_luks_devs[@]}"; do
+		_devuuid=$(maj_min_to_uuid "$_luks_dev")
+		_key_dir=/sys/kernel/config/crash_dm_crypt_keys/$_devuuid
+		mkdir $_key_dir
+		printf "cryptsetup:%s" "$_devuuid" > $_key_dir/description
+	done
 }
 
 start()
