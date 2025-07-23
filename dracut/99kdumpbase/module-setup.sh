@@ -63,6 +63,10 @@ depends() {
         add_opt_module lvmthinpool-monitor
     fi
 
+    if for_each_host_dev_and_slaves_all kdump_nvmf_callback; then
+        add_opt_module nvmf
+    fi
+
     if [[ "$(uname -m)" == "s390x" ]]; then
         _dep="$_dep znet"
     fi
