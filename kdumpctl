@@ -46,6 +46,7 @@ if ! dlog_init; then
 	exit 1
 fi
 
+set -x
 KDUMP_TMPDIR=$(mktemp --tmpdir -d kdump.XXXX)
 TMPMNT="$KDUMP_TMPDIR/target"
 trap '
@@ -1897,6 +1898,52 @@ kdump_test()
 	set_vmcore_creation_status 'pending'
 	echo c > /proc/sysrq-trigger
 }
+modify_crypttab()
+{
+	mapfile -t _luks_devs < <(get_all_kdump_crypt_dev)
+
+	if [[ ${#_luks_devs[@]} -lt 1 ]]; then
+		return
+	fi
+
+	CRYPTTAB_FILE="/etc/crypttab"
+
+	# 2. Safety Check: Ensure the crypttab file exists
+	if [[ ! -f "$CRYPTTAB_FILE" ]]; then
+		ddebug "$CRYPTTAB_FILE not found." >&2
+		exit 0
+	fi
+
+	# 3. Create a backup before modifying
+	BACKUP_FILE="${CRYPTTAB_FILE}.bak.$(date +%F-%T)"
+	cp "$CRYPTTAB_FILE" "$BACKUP_FILE"
+
+	awk '
+	# Skip comments and empty lines
+	/^#|^$/ { print; next }
+
+	# Skip lines that already have the link-volume-key option
+	/link-volume-key/ {
+		print
+		next
+	}
+
+	# For all other lines, process them
+	{
+		# Split the 2nd field (UUID=...) on the "=" sign to get the UUID value
+		split($2, uuid_parts, "=")
+		uuid = uuid_parts[2]
+
+		# Append the new option to the 4th field (options)
+		$4 = $4 ",link-volume-key=@u::%logon:cryptsetup:" uuid
+
+		# Print the modified line
+		print
+	}
+' "$CRYPTTAB_FILE" > "${CRYPTTAB_FILE}.tmp"
+
+	mv "${CRYPTTAB_FILE}.tmp" "$CRYPTTAB_FILE"
+}
 
 main()
 {
@@ -1978,6 +2025,9 @@ main()
 		if _should_reset_crashkernel; then
 			reset_crashkernel_for_installed_kernel "$2"
 		fi
+		;;
+	_modify_crypttab)
+		modify_crypttab
 		;;
 	*)
 		dinfo $"Usage: $0 {estimate|start|stop|status|restart|reload|rebuild|reset-crashkernel|propagate|showmem|test}"
