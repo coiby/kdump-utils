@@ -1,17 +1,54 @@
-name: Add Reviewed-by
+name: Append Reviewed-by to Commits
 
 on:
   pull_request_review:
-    branches:
-      - main
-    types:
-      - submitted
+    types: [submitted]
 
 jobs:
-  approved:
+  append-reviewed-by:
+    # Run this job only when the PR is approved
     if: github.event.review.state == 'approved'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      contents: write
     steps:
-      - uses: ntessore/add-reviewed-by-action@v1
+      - name: Install git-filter-repo
+        run: sudo apt-get update && sudo apt-get install -y git-filter-repo
+
+      - name: Checkout PR Branch
+        uses: actions/checkout@v4
+        with:
+          # Checkout the specific branch of the PR
+          ref: ${{ github.event.pull_request.head.ref }}
+          # Use the PAT to have write permissions
+          token: ${{ secrets.REVIEWED_BY_KEY }}
+          # Fetch all history so filter-repo can access the base commit
+          fetch-depth: 0
+
+      - name: Configure Git User
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Append Reviewed-by Trailer
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          REVIEWER_NAME: ${{ github.event.review.user.login }}
+          # Note: Getting a verified email can be tricky. Using the noreply email is a safe default.
+          REVIEWER_EMAIL: ${{ github.event.review.user.id }}+${{ github.event.review.user.login }}@users.noreply.github.com
+        run: |
+          # The message to append
+          REVIEWED_BY_TRAILER="Reviewed-by: $REVIEWER_NAME <$REVIEWER_EMAIL>"
+
+          # Run filter-repo to add the trailer to the message of each commit in the PR
+          # It operates on the range from the PR's base to its head
+          git filter-repo --commit-callback "
+            commit.message += b'\n\n$REVIEWED_BY_TRAILER'
+          " --refs ${{ github.event.pull_request.head.ref }}
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
