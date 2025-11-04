@@ -22,3 +22,7 @@
 /makedumpfile-1.5.9.tar.gz
 /kexec-tools-2.0.12.tar.xz
 coverage/
+# gemini-cli settings
+.gemini/
+# GitHub App credentials
+gha-creds-*.json
