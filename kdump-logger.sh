@@ -37,6 +37,8 @@
 # The code in this file might be run in an environment without bash.
 # Any code added must be POSIX compliant.
 
+shopt -q -o xtrace && debug=1
+
 # Define vairables for the log levels in this module.
 kdump_stdloglvl=""
 kdump_sysloglvl=""
