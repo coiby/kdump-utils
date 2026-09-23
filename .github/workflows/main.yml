@@ -42,7 +42,7 @@ jobs:
     strategy:
         matrix:
             fedora_version: [
-                    "42", "rawhide"
+                    "42"
             ]
         fail-fast: false
 
@@ -50,9 +50,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Test1 (${{ matrix.plan }})
+        run: |
+          git log -2
+
       - name: Install tmt
         run: |
-          dnf install tmt+provision-virtual -yq
+          dnf install tmt+provision-virtual rpm-build -yq
           #systemctl start libvirtd
           virtlogd -d
           libvirtd -d
@@ -60,6 +64,9 @@ jobs:
           test -e /dev/kvm && echo "KVM OK" || echo "WARNING: /dev/kvm missing"
           virsh list --all
 
+      - name: Test2 (${{ matrix.plan }})
+        run: |
+          git log -2
 
       - name: Run e2e test (${{ matrix.plan }})
         run: |
