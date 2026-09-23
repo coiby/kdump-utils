@@ -30,22 +30,50 @@ jobs:
       - run: cd shellspec-latest && sudo make install
       - run: shellspec
 
-  integration-tests:
-        runs-on: self-hosted
-        timeout-minutes: 360
-        concurrency:
-            group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.fedora_version }}-${{ matrix.test }}
-            cancel-in-progress: true
-        strategy:
-            matrix:
-                fedora_version: [
-                        "42", "rawhide"
-                ]
-            fail-fast: false
-        steps:
-            -   name: "Checkout Repository"
-                uses: actions/checkout@v4
-                with:
-                    fetch-depth: 0
-            -   name: "${{ matrix.fedora_version }} kdump tests"
-                run: tools/run-integration-tests.sh ${{ matrix.fedora_version }}
+  tmt-e2e-tests:
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/fedora/fedora:latest
+      options: "--privileged -v /dev:/dev --volume /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host"
+
+    concurrency:
+        group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.fedora_version }}-${{ matrix.test }}
+        cancel-in-progress: true
+    strategy:
+        matrix:
+            fedora_version: [
+                    "42"
+            ]
+        fail-fast: false
+
+    timeout-minutes: 480
+    steps:
+      # Install so actions/checkout will check out as git repo
+      - name: Install git and rpm-build
+        run: |
+          dnf install git  rpm-build make -yq
+
+      - uses: actions/checkout@v6
+
+      - name: Install tmt
+        run: |
+          dnf install tmt+provision-virtual -yq
+          #systemctl start libvirtd
+          virtlogd -d
+          libvirtd -d
+          # verify KVM is available
+          test -e /dev/kvm && echo "KVM OK" || echo "WARNING: /dev/kvm missing"
+          virsh list --all
+
+      - name: Run e2e test (${{ matrix.plan }})
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          tools/run-integration-tests.sh ${{ matrix.fedora_version }}
+
+      - name: Upload tmt artifacts
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: tmt-run-${{ matrix.plan }}
+          path: /var/tmp/tmt/run*
+          if-no-files-found: ignore

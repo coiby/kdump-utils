@@ -13,10 +13,10 @@ if ! rpm_path=$(./tools/build-rpm.sh "$fedora_version"); then
 	exit 1
 fi
 
-tmt_run_env=(--environment CUSTOM_MIRROR="$mirror" --environment KDUMP_UTILS_RPM="$rpm_path" --environment RESOURCE_URL=https://gitlab.cee.redhat.com/kernel-qe/kernel/-/raw/master/kdump/internal/internal_resources.sh --environment AUTO_CONFIG=pek)
+tmt_run_env=(--environment KDUMP_UTILS_RPM="$rpm_path")
 
 tmt_context=(--context distro="fedora-${fedora_version}")
-cd tests && tmt "${tmt_context[@]}" run "${tmt_run_env[@]}" -a provision -h virtual -i fedora:"$fedora_version" plans --name lvm2_thinp
+cd tests && tmt "${tmt_context[@]}" run "${tmt_run_env[@]}" -B finish provision -h virtual -c system -i https://archives.fedoraproject.org/pub/archive/fedora/linux/releases/42/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-42-1.1.x86_64.qcow2 plans --name lvm2_thinp
 
 if [[ $fedora_version == rawhide ]]; then
 	cd ../kernel-tests-plans
