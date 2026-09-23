@@ -56,7 +56,7 @@ jobs:
 
       - name: Install tmt
         run: |
-          dnf install tmt+provision-virtual rpm-build -yq
+          dnf install tmt+provision-virtual rpm-build git -yq
           #systemctl start libvirtd
           virtlogd -d
           libvirtd -d
