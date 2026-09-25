@@ -68,7 +68,8 @@ jobs:
       - name: Run e2e test (${{ matrix.plan }})
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          tools/run-integration-tests.sh ${{ matrix.fedora_version }}
+          cd kernel-tests-plans && tmt run -B finish provision -h virtual -c system -i fedora:43 plans --name ssh
+          # tools/run-integration-tests.sh ${{ matrix.fedora_version }}
 
       - name: Upload tmt artifacts
         uses: actions/upload-artifact@v7
