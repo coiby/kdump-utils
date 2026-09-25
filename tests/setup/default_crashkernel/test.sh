@@ -9,7 +9,7 @@ rlJournalStart
 if [ "$TMT_REBOOT_COUNT" == 0 ]; then
     rlPhaseStartTest
     rlRun "kdumpctl reset-crashkernel --kernel=ALL"
-    rlRun "tmt-reboot"
+    rlRun "tmt-reboot 'systemctl reboot'"
     rlPhaseEnd
 
 elif [ "$TMT_REBOOT_COUNT" == 1 ]; then
