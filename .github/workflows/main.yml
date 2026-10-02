@@ -32,9 +32,6 @@ jobs:
 
   tmt-e2e-tests:
     runs-on: ubuntu-latest
-    container:
-      image: quay.io/fedora/fedora:latest
-      options: "--privileged -v /dev:/dev --volume /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host"
 
     concurrency:
         group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.fedora_version }}-${{ matrix.test }}
@@ -48,27 +45,27 @@ jobs:
 
     timeout-minutes: 480
     steps:
-      # Install so actions/checkout will check out as git repo
-      - name: Install git and rpm-build
-        run: |
-          dnf install git  rpm-build make -yq
-
       - uses: actions/checkout@v6
 
       - name: Install tmt
         run: |
-          dnf install tmt+provision-virtual -yq
-          #systemctl start libvirtd
-          virtlogd -d
-          libvirtd -d
+          sudo apt-get update -qq
+          sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients libvirt-dev pkg-config genisoimage
+          sudo usermod -aG libvirt $USER
+          sudo systemctl start libvirtd
           # verify KVM is available
           test -e /dev/kvm && echo "KVM OK" || echo "WARNING: /dev/kvm missing"
-          virsh list --all
+          sudo virsh list --all
+
+      - name: Install tmt + testcloud
+        run: |
+          pip install --user tmt testcloud
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          tmt --version
 
       - name: Run e2e test (${{ matrix.plan }})
         run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          tools/run-integration-tests.sh ${{ matrix.fedora_version }}
+          cd tests && sg libvirt -c "tmt run -B finish --environment KDUMP_UTILS_RPM=kdump-utils provision -h virtual -c system -i fedora:43 plans --name lvm2_thinp"
 
       - name: Upload tmt artifacts
         uses: actions/upload-artifact@v7
