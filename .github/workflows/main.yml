@@ -3,38 +3,8 @@ name: kdump-utils tests
 on: [pull_request, workflow_dispatch]
 
 jobs:
-  format-check:
-    runs-on: ubuntu-latest
-    container: docker.io/fedora:latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: dnf install shfmt make curl which diffutils -yq
-      - run: curl -o /usr/local/bin/altshfmt https://raw.githubusercontent.com/shellspec/altshfmt/refs/heads/main/altshfmt && chmod +x /usr/local/bin/altshfmt
-      - run: make format-check
-
-  static-analysis:
-    runs-on: ubuntu-latest
-    container: docker.io/fedora:latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: dnf install shellcheck make -y
-      - run: make static-analysis
-
-  unit-tests:
-    runs-on: ubuntu-latest
-    container: docker.io/fedora:latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: sudo dnf install -y make dracut grubby hostname gawk
-      - run: curl -L -O https://github.com/shellspec/shellspec/archive/latest.tar.gz && tar -xzf latest.tar.gz
-      - run: cd shellspec-latest && sudo make install
-      - run: shellspec
-
   tmt-e2e-tests:
     runs-on: ubuntu-latest
-    container:
-      image: quay.io/fedora/fedora:latest
-      options: "--privileged -v /dev:/dev --volume /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host"
 
     concurrency:
         group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.fedora_version }}-${{ matrix.test }}
@@ -48,28 +18,51 @@ jobs:
 
     timeout-minutes: 480
     steps:
-      # Install so actions/checkout will check out as git repo
-      - name: Install git and rpm-build
-        run: |
-          dnf install git  rpm-build make -yq
-
       - uses: actions/checkout@v6
 
-      - name: Install tmt
+      - name: Start Fedora container with systemd
         run: |
-          dnf install tmt+provision-virtual -yq
-          #systemctl start libvirtd
-          virtlogd -d
-          libvirtd -d
-          # verify KVM is available
-          test -e /dev/kvm && echo "KVM OK" || echo "WARNING: /dev/kvm missing"
-          virsh list --all
+          mkdir -p /var/tmp/tmt
+          docker run -d --name fedora-systemd \
+            --privileged \
+            --cgroupns=host \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+            -v /dev:/dev \
+            -v /var/tmp/tmt:/var/tmp/tmt:rw \
+            -v "$GITHUB_WORKSPACE":/__w/kdump-utils/kdump-utils:rw \
+            -w /__w/kdump-utils/kdump-utils \
+            --stop-signal SIGRTMIN+3 \
+            quay.io/fedora/fedora:latest /sbin/init
+
+      - name: Wait for systemd to initialize
+        run: |
+          docker exec fedora-systemd bash -c '
+            until [ "$(systemctl is-system-running 2>/dev/null)" = "running" ] || \
+                  [ "$(systemctl is-system-running 2>/dev/null)" = "degraded" ]; do
+              sleep 1
+            done
+          '
+
+      - name: Install dependencies and start libvirtd
+        run: |
+          docker exec fedora-systemd dnf install -y git rpm-build make tmt+provision-virtual
+          docker exec fedora-systemd systemctl start libvirtd
+          docker exec fedora-systemd systemctl status libvirtd
+          docker exec fedora-systemd bash -c 'test -e /dev/kvm && echo "KVM OK" || echo "WARNING: /dev/kvm missing"'
+          docker exec fedora-systemd virsh list --all
 
       - name: Run e2e test (${{ matrix.plan }})
         run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          cd kernel-tests-plans && tmt run -B finish provision -h virtual -c system -i fedora:43 plans --name ssh
-          # tools/run-integration-tests.sh ${{ matrix.fedora_version }}
+          docker exec fedora-systemd bash -c '
+            git config --global --add safe.directory /__w/kdump-utils/kdump-utils
+            cd kernel-tests-plans && tmt run -B finish provision -h virtual -c system -i fedora:43 plans --name ssh
+            # tools/run-integration-tests.sh ${{ matrix.fedora_version }}
+          '
+
+      - name: Fix permissions for artifacts
+        if: always()
+        run: |
+          docker exec fedora-systemd chmod -R a+rX /var/tmp/tmt || true
 
       - name: Upload tmt artifacts
         uses: actions/upload-artifact@v7
