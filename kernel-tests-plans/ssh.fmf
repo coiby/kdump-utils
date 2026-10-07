@@ -6,6 +6,7 @@ provision:
 
 discover+:
     test:
+     - /kdump/config-restraint
      - /kdump/config-default-crashkernel
      - /kdump/config-ssh
      - /kdump/crash-sysrq-c

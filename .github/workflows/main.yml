@@ -28,44 +28,48 @@ jobs:
           STOPSIGNAL SIGRTMIN+3
           CMD ["/sbin/init"]
           EOF
-          podman build -t fedora-systemd -f Containerfile .
+          sudo podman build -t fedora-systemd -f Containerfile .
 
       - name: Start container
         run: |
-          podman run -d --name fedora-systemd \
+          sudo mkdir /var/tmp/tmt
+          sudo podman run -d --name fedora-systemd \
             --privileged \
             --systemd=always \
             --cgroupns=host \
             -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
             -v /dev:/dev \
+            -v /var/tmp/tmt:/var/tmp/tmt:rw \
             -v "$GITHUB_WORKSPACE":/__w/workspace:rw \
             fedora-systemd
 
       - name: Wait for systemd
         run: |
-          podman exec fedora-systemd systemctl restart dbus
-          podman exec fedora-systemd systemctl is-system-running --wait || true
+          sleep 3
+          # sudo podman exec fedora-systemd systemctl restart dbus
+          sudo podman exec fedora-systemd systemctl is-system-running --wait || true
 
       - name: Install dependencies and start libvirtd
         run: |
-          podman exec fedora-systemd dnf install -y git rpm-build make tmt+provision-virtual
-          podman exec fedora-systemd systemctl start libvirtd
-          podman exec fedora-systemd systemctl status libvirtd
-          podman exec fedora-systemd bash -c 'test -e /dev/kvm && echo "KVM OK" || echo "WARNING: /dev/kvm missing"'
-          podman exec fedora-systemd virsh list --all
+          sudo podman exec fedora-systemd dnf install -y git rpm-build make tmt+provision-virtual
+          sudo podman exec fedora-systemd systemctl start libvirtd
+          sudo podman exec fedora-systemd systemctl status libvirtd
+          sudo podman exec fedora-systemd bash -c 'test -e /dev/kvm && echo "KVM OK" || echo "WARNING: /dev/kvm missing"'
+          sudo podman exec fedora-systemd virsh list --all
 
       - name: Run e2e test (${{ matrix.plan }})
         run: |
-          podman exec fedora-systemd bash -c '
+          sudo podman exec fedora-systemd bash -c '
             git config --global --add safe.directory /__w/workspace
             cd /__w/workspace/kernel-tests-plans && tmt run -B finish provision -h virtual -c system -i fedora:43 plans --name ssh
+            #cd /__w/workspace/tests && tmt run -B finish provision -h virtual -c system -i fedora:43 plans --name lvm2_thinp
             # tools/run-integration-tests.sh ${{ matrix.fedora_version }}
           '
 
       - name: Fix permissions for artifacts
         if: always()
         run: |
-          podman exec fedora-systemd chmod -R a+rX /var/tmp/tmt || true
+          sudo podman exec fedora-systemd chmod -R a+rX /var/tmp/tmt || true
 
       - name: Upload tmt artifacts
         uses: actions/upload-artifact@v7
