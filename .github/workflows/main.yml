@@ -35,12 +35,16 @@ jobs:
           podman run -d --name fedora-systemd \
             --privileged \
             --systemd=always \
-            -v /dev/kvm:/dev/kvm \
+            --cgroupns=host \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+            -v /dev:/dev \
             -v "$GITHUB_WORKSPACE":/__w/workspace:rw \
             fedora-systemd
 
       - name: Wait for systemd
-        run: podman exec fedora-systemd systemctl is-system-running --wait || true
+        run: |
+          podman exec fedora-systemd systemctl restart dbus
+          podman exec fedora-systemd systemctl is-system-running --wait || true
 
       - name: Install dependencies and start libvirtd
         run: |
