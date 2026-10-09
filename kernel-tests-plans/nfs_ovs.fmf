@@ -1,20 +1,20 @@
 summary: Kdump NFS dumping over OVS bridge tests
 
 provision:
-   - name: client
-   - name: server
+  - name: client
+  - name: server
 
 discover+:
-    test:
-     - /kdump/config-restraint
-     - /kdump/config-default-crashkernel
-     - /kdump/config-ovs
-     - /kdump/config-nfs
-     - /kdump/crash-sysrq-c
-     - /kdump/copy-nfs
-     - /kdump/analyse-crash-cmd/simple_check
+  test:
+    - /kdump/config-restraint
+    - /kdump/config-default-crashkernel
+    - /kdump/config-ovs
+    - /kdump/config-nfs
+    - /kdump/crash-sysrq-c
+    - /kdump/copy-nfs
+    - /kdump/analyse-crash-cmd/simple_check
 
-adjust:
-   - when: distro == fedora-rawhide and initiator == packit
-     enabled: false
-     because: somehow the config-ovs test just fails on some testing farm AWS machines
+adjust+:
+  - when: distro == fedora-rawhide and initiator == packit
+    enabled: false
+    because: somehow the config-ovs test just fails on some testing farm AWS machines
