@@ -16,8 +16,9 @@ jobs:
             -v "$GITHUB_WORKSPACE:/workspace" \
             -w /workspace \
             quay.io/fedora/fedora:43 bash -c "
-              git config --global --add safe.directory /workspace
+              set -ex
               dnf install -y rpm-build make git sed
+              git config --global --add safe.directory '*'
               ./tools/build-rpm.sh 43
               chmod -R a+rw /workspace
             "
