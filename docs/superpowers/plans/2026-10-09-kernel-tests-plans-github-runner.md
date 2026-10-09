@@ -134,9 +134,9 @@ git commit -m "tests: configure multi-host plans for virtual runner execution"
 - Create: `kernel-tests-plans/lvm2_thinp.fmf`
 - Remove: `kernel-tests-plans/lvm2_thinp.fmf.new`
 
-- [ ] **Step 1: Create `kernel-tests-plans/lvm2_thinp.fmf`**
+- [x] **Step 1: Create `kernel-tests-plans/lvm2_thinp.fmf`**
 
-Create `kernel-tests-plans/lvm2_thinp.fmf` with secondary disk configuration and `THIN_MP`:
+Create `kernel-tests-plans/lvm2_thinp.fmf` with secondary disk configuration and `THIN_MP` (using `adjust+:` to preserve `main.fmf` inheritance):
 
 ```yaml
 summary: Kdump LVM2 thin provision tests
@@ -162,8 +162,8 @@ provision:
            part /thinp --fstype=xfs --size=10240
        metadata: no_autopart
 
-adjust:
-   - when: initiator != packit
+adjust+:
+   - when: initiator != packit or initiator is not defined
      provision:
         name: client
         how: virtual
@@ -176,16 +176,16 @@ adjust:
         THIN_MP: /dev/vdb
 ```
 
-- [ ] **Step 2: Remove untracked `kernel-tests-plans/lvm2_thinp.fmf.new`**
+- [x] **Step 2: Remove untracked `kernel-tests-plans/lvm2_thinp.fmf.new`**
 
 Run: `rm -f kernel-tests-plans/lvm2_thinp.fmf.new`
 
-- [ ] **Step 3: Validate `lvm2_thinp` plan with tmt**
+- [x] **Step 3: Validate `lvm2_thinp` plan with tmt**
 
 Run: `cd kernel-tests-plans && tmt plan show /lvm2_thinp`
 Expected: Output shows `/lvm2_thinp` with `config-thin` and disk hardware requirements.
 
-- [ ] **Step 4: Commit `lvm2_thinp` plan**
+- [x] **Step 4: Commit `lvm2_thinp` plan**
 
 ```bash
 git add kernel-tests-plans/lvm2_thinp.fmf
