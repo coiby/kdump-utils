@@ -315,7 +315,7 @@ git commit -m "ci: run kernel-tests-plans matrix on GitHub-hosted runner with bu
 **Files:**
 - Verify: `kernel-tests-plans/`
 
-- [ ] **Step 1: Check listing of all plans in `kernel-tests-plans`**
+- [x] **Step 1: Check listing of all plans in `kernel-tests-plans`**
 
 Run: `cd kernel-tests-plans && tmt plan ls`
 Expected output:
@@ -329,13 +329,13 @@ Expected output:
 /ssh
 ```
 
-- [ ] **Step 2: Inspect plan details with `--context install_built_rpm=yes`**
+- [x] **Step 2: Inspect plan details with `--context install_built_rpm=yes`**
 
 Run: `cd kernel-tests-plans && for p in early local lvm2_thinp nfs nfs_fips nfs_ovs ssh; do echo "=== $p ===" && tmt --context install_built_rpm=yes plan show "/$p" | grep -E "(summary|Install built RPM|config-restraint|how virtual)"; done`
 Expected:
 All 7 plans show summary, `Install built RPM` task, and multi-host plans show `config-restraint`.
 
-- [ ] **Step 3: Check git status to ensure working directory is clean**
+- [x] **Step 3: Check git status to ensure working directory is clean**
 
 Run: `git status`
 Expected: Working tree clean (or untracked scratch files ignored).
