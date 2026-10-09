@@ -9,6 +9,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Build kdump-utils RPM
         run: |
@@ -17,7 +18,7 @@ jobs:
             -w /workspace \
             quay.io/fedora/fedora:43 bash -c "
               set -ex
-              dnf install -y rpm-build make git sed
+              dnf install -y rpm-build make git sed systemd-rpm-macros
               git config --global --add safe.directory '*'
               ./tools/build-rpm.sh 43
               chmod -R a+rw /workspace
