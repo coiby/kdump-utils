@@ -1,6 +1,12 @@
 summary: Kdump NFS dumping over OVS bridge tests
+
+provision:
+   - name: client
+   - name: server
+
 discover+:
     test:
+     - /kdump/config-restraint
      - /kdump/config-default-crashkernel
      - /kdump/config-ovs
      - /kdump/config-nfs

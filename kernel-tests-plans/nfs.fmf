@@ -1,9 +1,14 @@
 summary: Kdump NFS dumping tests
+
+provision:
+   - name: client
+   - name: server
+
 discover+:
     test:
+     - /kdump/config-restraint
      - /kdump/config-default-crashkernel
      - /kdump/config-nfs
      - /kdump/crash-sysrq-c
      - /kdump/copy-nfs
      - /kdump/analyse-crash-cmd/simple_check
-
