@@ -5,20 +5,22 @@ on: [pull_request, workflow_dispatch]
 jobs:
   build-rpm:
     runs-on: ubuntu-latest
-    container:
-      image: quay.io/fedora/fedora:43
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Install build dependencies
-        run: dnf install -y rpm-build make git sed
-
       - name: Build kdump-utils RPM
         run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          ./tools/build-rpm.sh 43
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            quay.io/fedora/fedora:43 bash -c "
+              git config --global --add safe.directory /workspace
+              dnf install -y rpm-build make git sed
+              ./tools/build-rpm.sh 43
+              chmod -R a+rw /workspace
+            "
 
       - name: Upload built RPM
         uses: actions/upload-artifact@v7
