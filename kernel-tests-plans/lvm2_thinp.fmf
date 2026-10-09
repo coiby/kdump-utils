@@ -30,6 +30,13 @@ adjust+:
       hardware:
         disk:
           - size: = 40GB
-          - size: = 1GB
+          - size: = 10GB
+    prepare+:
+      - name: Mount thinp disk
+        how: shell
+        script: |
+          mkdir -p /thinp
+          mkfs.xfs -f /dev/vdb
+          mount /dev/vdb /thinp
     environment+:
-      THIN_MP: /dev/vdb
+      THIN_MP: /thinp

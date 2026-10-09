@@ -4,6 +4,14 @@ provision:
    - name: client
    - name: server
 
+prepare+:
+  - name: Prepare FIPS initramfs
+    how: shell
+    script: |
+      dnf install -y crypto-policies-scripts
+      update-crypto-policies --set FIPS
+      dracut -f --regenerate-all
+
 discover+:
     test:
      - /kdump/config-restraint
