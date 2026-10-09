@@ -19,7 +19,7 @@
 - Modify: `kernel-tests-plans/nfs_ovs.fmf`
 - Remove untracked: `kernel-tests-plans/ssh.fmf_restraint`
 
-- [ ] **Step 1: Update `kernel-tests-plans/ssh.fmf`**
+- [x] **Step 1: Update `kernel-tests-plans/ssh.fmf`**
 
 Add `client` and `server` provisioning and `/kdump/config-restraint`:
 
@@ -40,7 +40,7 @@ discover+:
      - /kdump/analyse-crash-cmd/simple_check
 ```
 
-- [ ] **Step 2: Update `kernel-tests-plans/nfs.fmf`**
+- [x] **Step 2: Update `kernel-tests-plans/nfs.fmf`**
 
 Add `client` and `server` provisioning and `/kdump/config-restraint`:
 
@@ -61,7 +61,7 @@ discover+:
      - /kdump/analyse-crash-cmd/simple_check
 ```
 
-- [ ] **Step 3: Update `kernel-tests-plans/nfs_fips.fmf`**
+- [x] **Step 3: Update `kernel-tests-plans/nfs_fips.fmf`**
 
 Add `client` and `server` provisioning and `/kdump/config-restraint`:
 
@@ -83,7 +83,7 @@ discover+:
      - /kdump/analyse-crash-cmd/simple_check
 ```
 
-- [ ] **Step 4: Update `kernel-tests-plans/nfs_ovs.fmf`**
+- [x] **Step 4: Update `kernel-tests-plans/nfs_ovs.fmf`**
 
 Add `client` and `server` provisioning and `/kdump/config-restraint`:
 
@@ -110,16 +110,16 @@ adjust:
      because: somehow the config-ovs test just fails on some testing farm AWS machines
 ```
 
-- [ ] **Step 5: Remove redundant untracked `kernel-tests-plans/ssh.fmf_restraint`**
+- [x] **Step 5: Remove redundant untracked `kernel-tests-plans/ssh.fmf_restraint`**
 
 Run: `rm -f kernel-tests-plans/ssh.fmf_restraint`
 
-- [ ] **Step 6: Validate plan definitions with tmt**
+- [x] **Step 6: Validate plan definitions with tmt**
 
 Run: `cd kernel-tests-plans && tmt plan show /ssh && tmt plan show /nfs && tmt plan show /nfs_fips && tmt plan show /nfs_ovs`
 Expected: Output shows all 4 plans with `provision` (client, server) and `discover` including `/kdump/config-restraint`.
 
-- [ ] **Step 7: Commit multi-host plan changes**
+- [x] **Step 7: Commit multi-host plan changes**
 
 ```bash
 git add kernel-tests-plans/ssh.fmf kernel-tests-plans/nfs.fmf kernel-tests-plans/nfs_fips.fmf kernel-tests-plans/nfs_ovs.fmf
