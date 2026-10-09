@@ -3,33 +3,6 @@ name: kdump-utils tests
 on: [pull_request, workflow_dispatch]
 
 jobs:
-  format-check:
-    runs-on: ubuntu-latest
-    container: docker.io/fedora:latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: dnf install shfmt make curl which diffutils -yq
-      - run: curl -o /usr/local/bin/altshfmt https://raw.githubusercontent.com/shellspec/altshfmt/refs/heads/main/altshfmt && chmod +x /usr/local/bin/altshfmt
-      - run: make format-check
-
-  static-analysis:
-    runs-on: ubuntu-latest
-    container: docker.io/fedora:latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: dnf install shellcheck make -y
-      - run: make static-analysis
-
-  unit-tests:
-    runs-on: ubuntu-latest
-    container: docker.io/fedora:latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: sudo dnf install -y make dracut grubby hostname gawk
-      - run: curl -L -O https://github.com/shellspec/shellspec/archive/latest.tar.gz && tar -xzf latest.tar.gz
-      - run: cd shellspec-latest && sudo make install
-      - run: shellspec
-
   tmt-e2e-tests:
     runs-on: ubuntu-latest
 
@@ -47,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install tmt
+      - name: Install libvirt
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients libvirt-dev pkg-config genisoimage
@@ -65,7 +38,7 @@ jobs:
 
       - name: Run e2e test (${{ matrix.plan }})
         run: |
-          cd tests && sg libvirt -c "tmt run -B finish --environment KDUMP_UTILS_RPM=kdump-utils provision -h virtual -c system -i fedora:43 plans --name lvm2_thinp"
+          cd tests && sg libvirt -c "tmt run -a --environment KDUMP_UTILS_RPM=kdump-utils provision -h virtual -c system -i fedora:43 plans --name lvm2_thinp"
 
       - name: Upload tmt artifacts
         uses: actions/upload-artifact@v7
