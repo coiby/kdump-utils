@@ -199,7 +199,7 @@ git commit -m "tests: add lvm2_thinp test plan to kernel-tests-plans"
 **Files:**
 - Modify: `.github/workflows/main.yml`
 
-- [ ] **Step 1: Update `.github/workflows/main.yml` with `build-rpm` and `tmt-e2e-tests` matrix**
+- [x] **Step 1: Update `.github/workflows/main.yml` with `build-rpm` and `tmt-e2e-tests` matrix**
 
 Edit `.github/workflows/main.yml`:
 
@@ -215,6 +215,8 @@ jobs:
       image: quay.io/fedora/fedora:43
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Install build dependencies
         run: dnf install -y rpm-build make git sed
@@ -283,7 +285,7 @@ jobs:
           RPM_PATH=$(find "$GITHUB_WORKSPACE/built-rpm" -name "kdump-utils-*.rpm" | head -n 1)
           echo "Using built RPM: $RPM_PATH"
           test -f "$RPM_PATH" || { echo "RPM not found"; exit 1; }
-          cd kernel-tests-plans && sg libvirt -c "tmt --context install_built_rpm=yes run -a --environment KDUMP_UTILS_RPM=\"$RPM_PATH\" provision -h virtual -c system -i fedora:${{ matrix.fedora_version }} plans --name ${{ matrix.plan }}"
+          cd kernel-tests-plans && sg libvirt -c "tmt --context install_built_rpm=yes run -a --environment KDUMP_UTILS_RPM=\"$RPM_PATH\" provision -h virtual -c system -i fedora:${{ matrix.fedora_version }} plans --name '^/${{ matrix.plan }}\$'"
 
       - name: Upload tmt artifacts
         uses: actions/upload-artifact@v7
@@ -294,12 +296,12 @@ jobs:
           if-no-files-found: ignore
 ```
 
-- [ ] **Step 2: Verify YAML syntax of `.github/workflows/main.yml`**
+- [x] **Step 2: Verify YAML syntax of `.github/workflows/main.yml`**
 
 Run: `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/main.yml'))"`
 Expected: No syntax errors.
 
-- [ ] **Step 3: Commit workflow changes**
+- [x] **Step 3: Commit workflow changes**
 
 ```bash
 git add .github/workflows/main.yml
