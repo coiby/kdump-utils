@@ -4,6 +4,15 @@ provision:
    - name: client
    - name: server
 
+adjust+:
+   # kernel-6.17.1-300.fc43.x86_64 will crash with FIPS enabled
+   - when: distro == fedora-43 and arch == x86_64
+     prepare+:
+       - name: Upgrade to latest kernel
+         how: shell
+         script: |
+           dnf upgrade kernel-core -y
+
 discover+:
     test:
      - /kdump/config-restraint
