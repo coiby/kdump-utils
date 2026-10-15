@@ -30,6 +30,6 @@ adjust+:
       hardware:
         disk:
           - size: = 40GB
-          - size: = 1GB
+          - size: = 10GB
     environment+:
       THIN_MP: /dev/vdb
