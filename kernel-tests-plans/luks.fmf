@@ -1,0 +1,43 @@
+summary: Kdump LUKS encrypted local dumping tests
+
+provision:
+    how: artemis
+    hardware:
+        disk:
+            - size: ">= 40 GB"
+    kickstart:
+      metadata: "no_autopart"
+      script: |
+        lang en_US.UTF-8
+        zerombr
+        clearpart --all --initlabel
+
+        # Create required boot partitions
+        reqpart
+
+        # System partitions
+        part /boot --fstype="ext4" --size=1024
+        part swap --size=4096
+        part / --fstype="ext4" --size=20000
+
+        # Reserve an empty partition for LUKS
+        part None --size=2048
+
+adjust+:
+  - when: arch == s390x
+    enabled: false
+    because: LUKS encrypted kdump is not supported on s390x
+
+discover+:
+  how: fmf
+  test:
+    - /kdump/config-default-crashkernel
+    - /kdump/config-luks
+    - /kdump/config-fs
+    - /kdump/crash-sysrq-c
+    - /kdump/config-luks
+    - /kdump/analyse-crash-cmd/simple_check
+
+environment:
+  MP: "/mnt/kdump_target"
+
