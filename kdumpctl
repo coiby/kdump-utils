@@ -4,8 +4,16 @@ KEXEC=/sbin/kexec
 KDUMP_KERNELVER=""
 KDUMP_KERNEL=""
 KEXEC_ARGS=""
-MKDUMPRD="/sbin/mkdumprd -f"
+MKDUMPRD="/sbin/mkdumprd"
 MKFADUMPRD="/sbin/mkfadumprd"
+if shopt -q -o xtrace; then
+	# shells running as root don't inherit PS4
+	PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]-}): '
+	MKDUMPRD+=" --debug"
+	MKFADUMPRD+=" --debug"
+fi
+MKDUMPRD+=" -f"
+
 DRACUT_MODULES_FILE="/usr/lib/dracut/modules.txt"
 
 # Path to the initrd used for normal boot. Used to determine the naming
@@ -184,7 +192,7 @@ rebuild_kdump_initrd()
 	fi
 
 	if check_earlykdump_is_enabled; then
-		dwarn "Tips: If early kdump is enabled, also require rebuilding the system initramfs to make the changes take effect for early kdump."
+		dwarn "If early kdump is enabled, also require rebuilding the system initramfs to make the changes take effect for early kdump."
 	fi
 
 	sync -f "$TARGET_INITRD"
@@ -266,7 +274,7 @@ backup_default_initrd()
 
 	dinfo "Backing up $DEFAULT_INITRD before rebuild."
 	if ! cp "$DEFAULT_INITRD" "$DEFAULT_INITRD_BAK"; then
-		dwarn "WARNING: failed to backup $DEFAULT_INITRD."
+		dwarn "Failed to backup $DEFAULT_INITRD."
 		rm -f -- "$DEFAULT_INITRD_BAK"
 		return
 	fi
@@ -295,7 +303,7 @@ restore_default_initrd()
 	# If a backup initrd exists, we must be switching back from
 	# fadump to kdump. Restore the original default initrd.
 	if ! sha512sum --status --check "$DEFAULT_INITRD_CHECKSUM"; then
-		dwarn "WARNING: checksum mismatch! Can't restore original initrd."
+		dwarn "Checksum mismatch! Can't restore original initrd."
 		return
 	fi
 
@@ -324,7 +332,6 @@ _set_config()
 		fi
 		return 1
 	fi
-	[[ $_val == \"*\" ]] && _val=${_val:1:-1}
 	OPT[$opt]="$val"
 }
 
@@ -343,8 +350,9 @@ parse_config()
 			fi
 			;;
 		raw)
+			dwarn "The 'raw' dump target is deprecated and will be removed in a future release. Please migrate to a filesystem-based dump target (e.g., ext4, xfs, nfs, or ssh)."
 			if [[ -d "/proc/device-tree/ibm,opal/dump" ]]; then
-				dwarn "WARNING: Won't capture opalcore when 'raw' dump target is used."
+				dwarn "Won't capture opalcore when 'raw' dump target is used."
 			fi
 			_set_config _fstype "$config_opt" || return 1
 			config_opt=_target
@@ -360,16 +368,16 @@ parse_config()
 			elif [[ -f $config_val ]]; then
 				config_val=$(/usr/bin/readlink -m "$config_val")
 			else
-				dwarn "WARNING: '$config_val' doesn't exist, using default value '$DEFAULT_SSHKEY'"
+				dwarn "'$config_val' doesn't exist, using default value '$DEFAULT_SSHKEY'"
 				config_val=$DEFAULT_SSHKEY
 			fi
 			;;
 		default)
-			dwarn "WARNING: Option 'default' was renamed 'failure_action' and will be removed in the future."
+			dwarn "Option 'default' was renamed 'failure_action' and will be removed in the future."
 			dwarn "Please update $KDUMP_CONFIG_FILE to use option 'failure_action' instead."
 			_set_config failure_action "$config_val" || return 1
 			;;
-		path | core_collector | kdump_post | kdump_pre | extra_bins | extra_modules | failure_action | final_action | force_rebuild | force_no_rebuild | fence_kdump_args | fence_kdump_nodes | auto_reset_crashkernel) ;;
+		path | core_collector | kdump_post | kdump_pre | kdump_emergency | extra_bins | extra_modules | failure_action | final_action | force_rebuild | force_no_rebuild | fence_kdump_args | fence_kdump_nodes | auto_reset_crashkernel) ;;
 
 		net | options | link_delay | disk_timeout | debug_mem_level | blacklist)
 			derror "Deprecated kdump config option: $config_opt. Refer to kdump.conf manpage for alternatives."
@@ -462,9 +470,6 @@ check_files_modified()
 	#also rebuild when Pacemaker cluster conf is changed and fence kdump is enabled.
 	modified_files=$(get_pcs_cluster_modified_files "$image_time")
 
-	EXTRA_BINS=${OPT[kdump_post]}
-	CHECK_FILES=${OPT[kdump_pre]}
-	HOOKS="/etc/kdump/post.d/ /etc/kdump/pre.d/"
 	if [[ -d /etc/kdump/post.d ]]; then
 		for file in /etc/kdump/post.d/*; do
 			if [[ -x $file ]]; then
@@ -479,13 +484,18 @@ check_files_modified()
 			fi
 		done
 	fi
-	HOOKS="$HOOKS $POST_FILES $PRE_FILES"
+	if [[ -d /etc/kdump/emergency.d ]]; then
+		for file in /etc/kdump/emergency.d/*; do
+			if [[ -x $file ]]; then
+				EMERGENCY_FILES="$EMERGENCY_FILES $file"
+			fi
+		done
+	fi
+	HOOKS="$POST_FILES $PRE_FILES $EMERGENCY_FILES"
 	CORE_COLLECTOR=$(echo "${OPT[core_collector]}" | awk '{print $1}')
 	CORE_COLLECTOR=$(type -P "$CORE_COLLECTOR")
 	# POST_FILES and PRE_FILES are already checked against executable, need not to check again.
-	EXTRA_BINS="$EXTRA_BINS $CHECK_FILES"
-	CHECK_FILES=${OPT[extra_bins]}
-	EXTRA_BINS="$EXTRA_BINS $CHECK_FILES"
+	EXTRA_BINS="${OPT[kdump_post]} ${OPT[kdump_pre]} ${OPT[kdump_emergency]} ${OPT[extra_bins]}"
 	files="$KDUMP_CONFIG_FILE $KDUMP_KERNEL $EXTRA_BINS $CORE_COLLECTOR"
 	[[ -e /etc/fstab ]] && files="$files /etc/fstab"
 
@@ -548,7 +558,7 @@ check_drivers_modified()
 	# If it's dump target is on block device, detect the block driver
 	_target=$(get_block_dump_target)
 	if [[ -n $_target ]]; then
-		# shellcheck disable=SC2317
+		# shellcheck disable=SC2329 # false postive, shellcheck issue #3273
 		_record_block_drivers()
 		{
 			local _drivers
@@ -625,7 +635,7 @@ check_fs_modified()
 	_new_mntpoint="$(get_kdump_mntpoint_from_target "$_target")"
 	_dracut_args=$(lsinitrd "$TARGET_INITRD" -f usr/lib/dracut/build-parameter.txt)
 	if [[ -z $_dracut_args ]]; then
-		dwarn "Warning: No dracut arguments found in initrd"
+		dwarn "No dracut arguments found in initrd"
 		return 0
 	fi
 
@@ -903,7 +913,7 @@ save_raw()
 	}
 	check_fs=$(lsblk --nodeps -npo FSTYPE "$raw_target")
 	if [[ $(echo "$check_fs" | wc -w) -ne 0 ]]; then
-		dwarn "Warning: Detected '$check_fs' signature on $raw_target, data loss is expected."
+		dwarn "Detected '$check_fs' signature on $raw_target, data loss is expected."
 		return 0
 	fi
 
@@ -1020,10 +1030,10 @@ fadump_bootargs_append()
 			output=$(cat "$FADUMP_APPEND_ARGS_SYS_NODE")
 			dinfo "fadump: additional parameters for capture kernel: '$output'"
 		else
-			dwarn "WARNING: failed to setup additional parameters for fadump capture kernel: '$output'"
+			dwarn "Failed to setup additional parameters for fadump capture kernel: '$output'"
 		fi
 	else
-		dwarn "WARNING: this kernel does not support passing additional parameters to fadump capture kernel."
+		dwarn "This kernel does not support passing additional parameters to fadump capture kernel."
 	fi
 }
 
@@ -1174,7 +1184,7 @@ prepare_luks()
 
 	# Currently only x86_64 is supported
 	if [[ "$(uname -m)" != "x86_64" ]]; then
-		dwarn "Warning: Encrypted device is in dump path, which is not recommended, see kexec-kdump-howto.txt for more details."
+		dwarn "Encrypted device is in dump path, which is not recommended, see kexec-kdump-howto.txt for more details."
 		return 0
 	fi
 
@@ -1532,8 +1542,9 @@ do_estimate()
 	local kernel_size mod_size initrd_size baseline_size runtime_size reserved_size estimated_size recommended_size _cryptsetup_overhead
 	local size_mb=$((1024 * 1024))
 
-	setup_initrd
-	is_system_modified
+	parse_config || return 1
+	setup_initrd || return 1
+	need_initrd_rebuild
 	case "$?" in
 	0)
 		# Nothing to do
@@ -1688,7 +1699,7 @@ _find_kernel_path_by_release()
 
 	# Insert '/' before '+' to cope with grep's EREs
 	_release=${_release//+/\\+}
-	_grubby_kernel_str=$(grubby --info ALL | grep -E "^kernel=.*$_release(/\w+)?\"$")
+	_grubby_kernel_str=$(grubby --info ALL | grep -m 1 -E "^kernel=.*$_release(/\w+)?\"$")
 	_kernel_path=$(_filter_grubby_kernel_str "$_grubby_kernel_str")
 	if [[ -z $_kernel_path ]]; then
 		ddebug "kernel $_release doesn't exist"
@@ -1827,10 +1838,14 @@ reset_crashkernel()
 			fi
 			;;
 		--kernel=*)
+			if is_ostree; then
+				dwarn "Ignore --kernel argument for OSTree system"
+				continue
+			fi
 			_val=${_opt#*=}
 			if ! _valid_grubby_kernel_path "$_val"; then
 				derror "Invalid $_opt, please specify a valid kernel path, ALL or DEFAULT"
-				exit
+				exit 1
 			fi
 			_grubby_kernel_path=$_val
 			;;
@@ -1859,8 +1874,9 @@ reset_crashkernel()
 		_new_ck=$(kdump_get_arch_recommend_crashkernel kdump)
 		if _update_kernel_cmdline "" crashkernel "$_old_ck" "$_new_ck"; then
 			[[ $_reboot == yes ]] && systemctl reboot
+			return 0
 		fi
-		return
+		return 1
 	fi
 
 	# If kernel-path not specified, either
@@ -1905,11 +1921,18 @@ reset_crashkernel()
 			else
 				_has_changed="Updated crashkernel=$_new_ck"
 			fi
+		else
+			# No change needed - crashkernel value is already correct
+			if [[ -z $_has_changed ]]; then
+				dinfo "No need to update crashkernel value for kernel=$_kernel, grub entry index=$_grub_entry_index"
+			fi
 		fi
 		if [[ -n $_has_changed ]]; then
-			check_mem_requirement "$_dump_mode"
-			_needs_reboot=1
-			dwarn "$_has_changed for kernel=$_kernel, grub entry index=$_grub_entry_index. Please reboot the system for the change to take effect."
+			dinfo "$_has_changed for kernel=$_kernel, grub entry index=$_grub_entry_index."
+			if check_mem_requirement "$_dump_mode"; then
+				_needs_reboot=1
+				dwarn "Please reboot the system for the change to take effect."
+			fi
 		fi
 	done <<< "$_grub_entries"
 
@@ -2127,7 +2150,7 @@ check_vmcore_creation_status()
 	[[ $DEFAULT_DUMP_MODE == "kdump" ]] || return
 
 	if [[ ! -s $VMCORE_CREATION_STATUS ]]; then
-		dwarn "Notice: No vmcore creation test performed!"
+		dwarn "No vmcore creation test performed!"
 		return
 	fi
 
@@ -2161,10 +2184,10 @@ check_vmcore_creation_status()
 		dinfo "Notice: Last successful vmcore creation test on $_status_date"
 		;;
 	fail)
-		dwarn "Notice: Last NOT successful vmcore creation test on $_status_date"
+		dwarn "Last NOT successful vmcore creation test on $_status_date"
 		;;
 	manual)
-		dwarn "Notice: Require manual check for vmcore creation test of $_status_date"
+		dwarn "Require manual check for vmcore creation test of $_status_date"
 		;;
 	*)
 		derror "Unknown vmcore creation test status: $_status"
@@ -2289,7 +2312,7 @@ main()
 		setup_crypttab
 		;;
 	*)
-		dinfo $"Usage: $0 {estimate|start|stop|status|restart|reload|rebuild|reset-crashkernel|propagate|showmem|test|setup-crypttab}"
+		dinfo $"Usage: $0 {estimate|start|stop|status|restart|reload|rebuild|reset-crashkernel|propagate|showmem|test|setup-crypttab|get-default-crashkernel}"
 		exit 1
 		;;
 	esac

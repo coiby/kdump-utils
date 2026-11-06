@@ -344,6 +344,7 @@ _install_nmconnections_before_ovs() {
             exit 1
         fi
     done <<< "$(nmcli --get-values filename,ACTIVE connection show | grep "no$")"
+    inst -o /var/lib/NetworkManager/timestamps
 }
 
 kdump_install_nmconnections() {
@@ -659,7 +660,7 @@ kdump_install_net() {
     fi
 }
 
-# install etc/kdump/pre.d and /etc/kdump/post.d
+# install etc/kdump/pre.d and /etc/kdump/post.d /etc/kdump/emergency.d
 kdump_install_pre_post_conf() {
     if [[ -d /etc/kdump/pre.d ]]; then
         for file in /etc/kdump/pre.d/*; do
@@ -676,6 +677,16 @@ kdump_install_pre_post_conf() {
             if [[ -x $file ]]; then
                 dracut_install "$file"
             elif [[ $file != "/etc/kdump/post.d/*" ]]; then
+                echo "$file is not executable"
+            fi
+        done
+    fi
+
+    if [[ -d /etc/kdump/emergency.d ]]; then
+        for file in /etc/kdump/emergency.d/*; do
+            if [[ -x $file ]]; then
+                dracut_install "$file"
+            elif [[ $file != "/etc/kdump/emergency.d/*" ]]; then
                 echo "$file is not executable"
             fi
         done
@@ -724,7 +735,7 @@ kdump_install_conf() {
     kdump_read_conf > "${initdir}/tmp/$$-kdump.conf"
 
     while read -r _opt _val; do
-        [[ $_val == \"*\" ]] && _val=${_val:1:-1}
+        # remove inline comments after the end of a directive.
         case "$_opt" in
             raw)
                 _pdev=$(persistent_policy="by-id" kdump_get_persistent_dev "$_val")
@@ -742,7 +753,7 @@ kdump_install_conf() {
                     kdump_collect_netif_usage "$(get_dracut_args_target "$_val")"
                 fi
                 ;;
-            kdump_pre | kdump_post | extra_bins)
+            kdump_pre | kdump_post | kdump_emergency | extra_bins)
                 # shellcheck disable=SC2086
                 dracut_install $_val
                 ;;
@@ -771,6 +782,15 @@ remove_sysctl_conf() {
     rm -rf "${initdir}/etc/sysctl.d"
     rm -rf "${initdir}/run/sysctl.d"
     rm -rf "${initdir}/usr/lib/sysctl.d"
+}
+
+# Removes unwanted udev rules from the initramfs image.
+remove_udev_rules() {
+    # Exclude 90-vpdupdate.rules on ppc64le as VPD updates are not needed
+    # in the capture kernel.
+    if [[ "$(uname -m)" == "ppc64le" ]]; then
+        rm -f "${initdir}/etc/udev/rules.d/90-vpdupdate.rules"
+    fi
 }
 
 kdump_iscsi_get_rec_val() {
@@ -897,7 +917,7 @@ kdump_check_iscsi_targets() {
     # If our prerequisites are not met, fail anyways.
     type -P iscsistart > /dev/null || return 1
 
-    # shellcheck disable=SC2317
+    # shellcheck disable=SC2329 # false postive, shellcheck issue #3273
     kdump_check_setup_iscsi() {
         local _dev
         _dev=$1
@@ -1159,6 +1179,7 @@ install() {
     kdump_module_init
     kdump_install_conf
     remove_sysctl_conf
+    remove_udev_rules
 
     if is_ssh_dump_target; then
         kdump_install_random_seed

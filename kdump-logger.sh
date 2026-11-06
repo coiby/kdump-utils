@@ -37,6 +37,14 @@
 # The code in this file might be run in an environment without bash.
 # Any code added must be POSIX compliant.
 
+# When xtrace is enabled, set debug to prevent logger functions from turning
+# off xtrace
+case "$-" in
+*"x"*)
+	debug=1
+	;;
+esac
+
 # Define vairables for the log levels in this module.
 kdump_stdloglvl=""
 kdump_sysloglvl=""
@@ -85,7 +93,7 @@ check_loglvl()
 # @brief Initializes Logger.
 # @retval 1 if something has gone wrong
 # @retval 0 on success.
-# shellcheck disable=SC2317 # skip for empty functions like dwarn
+# shellcheck disable=SC2329 # skip for empty functions like dwarn
 #
 dlog_init()
 {
@@ -177,11 +185,6 @@ dlog_init()
 	if [ "$kdump_stdloglvl" -lt 2 ] && [ "$kdump_kmsgloglvl" -lt 2 ] && [ "$kdump_sysloglvl" -lt 2 ]; then
 		unset dwarn
 		dwarn()
-		{
-			:
-		}
-		unset dwarning
-		dwarning()
 		{
 			:
 		}
@@ -360,20 +363,7 @@ dinfo()
 dwarn()
 {
 	set +x
-	dlog 2 "$@"
-	if [ -n "$debug" ]; then
-		set -x
-	fi
-}
-
-## @brief It's an alias to dwarn() function.
-#
-# @param msg Message.
-# @retval 0 It's always returned, even if logging failed.
-dwarning()
-{
-	set +x
-	dwarn "$@"
+	dlog 2 "WARNING:" "$@"
 	if [ -n "$debug" ]; then
 		set -x
 	fi

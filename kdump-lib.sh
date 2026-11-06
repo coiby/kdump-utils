@@ -87,7 +87,7 @@ to_dev_name()
 
 is_user_configured_dump_target()
 {
-	[[ $(kdump_get_conf_val "ext[234]\|xfs\|btrfs\|minix\|raw\|nfs\|ssh\|virtiofs") ]] || is_mount_in_dracut_args
+	[[ $(kdump_get_conf_val "ext[234]|xfs|btrfs|minix|raw|nfs|ssh|virtiofs") ]] || is_mount_in_dracut_args
 }
 
 get_block_dump_target()
@@ -98,7 +98,7 @@ get_block_dump_target()
 		return
 	fi
 
-	_target=$(kdump_get_conf_val "ext[234]\|xfs\|btrfs\|minix\|raw\|virtiofs")
+	_target=$(kdump_get_conf_val "ext[234]|xfs|btrfs|minix|raw|virtiofs")
 	[[ -n $_target ]] && to_dev_name "$_target" && return
 
 	_target=$(get_dracut_args_target "$(kdump_get_conf_val "dracut_args")")
@@ -116,7 +116,7 @@ get_block_dump_target()
 
 is_dump_to_rootfs()
 {
-	[[ $(kdump_get_conf_val 'failure_action\|default') == dump_to_rootfs ]]
+	[[ $(kdump_get_conf_val 'failure_action|default') == dump_to_rootfs ]]
 }
 
 is_lvm2_thinp_dump_target()
@@ -473,7 +473,7 @@ prepare_kexec_args()
 		if [[ $? == 1 ]]; then
 			found_elf_args=$(echo "$kexec_args" | grep elf32-core-headers)
 			if [[ -n $found_elf_args ]]; then
-				dwarn "Warning: elf32-core-headers overrides correct elf64 setting"
+				dwarn "elf32-core-headers overrides correct elf64 setting"
 			else
 				kexec_args="$kexec_args --elf64-core-headers"
 			fi
@@ -778,6 +778,8 @@ prepare_cmdline()
 	# (if at all) and add it explicitly.
 	out+="rd.systemd.gpt_auto=no "
 
+	shopt -q -o xtrace && out+="rd.debug "
+
 	# Trim unnecessary whitespaces
 	echo "$out" | sed -e "s/^ *//g" -e "s/ *$//g" -e "s/ \+/ /g"
 }
@@ -974,6 +976,36 @@ _crashkernel_add()
 	echo "${ret%,}"
 }
 
+# Parses the kdump or fadump command line to extract a valid
+# positive nr_cpus=<N> value, defaulting to 1 if none is found.
+find_nr_cpus()
+{
+	local _cmdline_append
+	local _nr_cpus=1
+
+	# shellcheck disable=SC2153
+	if [[ $DEFAULT_DUMP_MODE == "fadump" ]]; then
+		_cmdline_append="$FADUMP_COMMANDLINE_APPEND"
+	else
+		_cmdline_append="$KDUMP_COMMANDLINE_APPEND"
+	fi
+
+	for arg in $_cmdline_append; do
+		case $arg in
+		nr_cpus=[0-9]*)
+			# Only accept if it's strictly digits after '='
+			value=${arg#nr_cpus=}
+			if [[ $value =~ ^[1-9][0-9]*$ ]]; then
+				_nr_cpus=$value
+			fi
+			;;
+		esac
+	done
+
+	ddebug "Configured nr_cpus=$_nr_cpus"
+	echo "$_nr_cpus"
+}
+
 # get default crashkernel
 # $1 dump mode, if not specified, dump_mode will be judged by is_fadump_capable
 # $2 kernel-release, if not specified, got by _get_kdump_kernel_version
@@ -1024,6 +1056,14 @@ kdump_get_arch_recommend_crashkernel()
 			has_mlx5 && ((_delta += 150))
 		fi
 	elif [[ $_arch == "ppc64le" ]]; then
+		local _per_cpu_area
+		local _nr_cpus
+
+		# 1MB per CPU
+		_per_cpu_area=1
+		_nr_cpus=$(find_nr_cpus)
+
+		_delta=$((_delta + _per_cpu_area * _nr_cpus))
 		if [[ $_dump_mode == "fadump" ]]; then
 			_ck_cmdline="4G-16G:768M,16G-64G:1G,64G-128G:2G,128G-1T:4G,1T-2T:6G,2T-4T:12G,4T-8T:20G,8T-16T:36G,16T-32T:64G,32T-64T:128G,64T-:180G"
 		else

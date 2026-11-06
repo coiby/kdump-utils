@@ -22,8 +22,7 @@ KDUMP_LOG_DEST=""
 KDUMP_LOG_OP=""
 KDUMP_TEST_ID=""
 KDUMP_TEST_STATUS=""
-CORE_COLLECTOR=""
-DEFAULT_CORE_COLLECTOR="makedumpfile -l --message-level 7 -d 31"
+CORE_COLLECTOR="makedumpfile -l --message-level 7 -d 31"
 DMESG_COLLECTOR="/sbin/vmcore-dmesg"
 FAILURE_ACTION="systemctl reboot -f"
 DATEDIR=$(date +%Y-%m-%d-%T)
@@ -34,6 +33,7 @@ DD_BLKSIZE=512
 FINAL_ACTION="systemctl reboot -f"
 KDUMP_PRE=""
 KDUMP_POST=""
+KDUMP_EMERGENCY=""
 NEWROOT="/sysroot"
 OPALCORE="/sys/firmware/opal/mpipl/core"
 KDUMP_CONF_PARSED="/tmp/kdump.conf.$$"
@@ -66,6 +66,9 @@ get_kdump_confs() {
                 ;;
             kdump_post)
                 KDUMP_POST="$config_val"
+                ;;
+            kdump_emergency)
+                KDUMP_EMERGENCY="$config_val"
                 ;;
             fence_kdump_args)
                 FENCE_KDUMP_ARGS="$config_val"
@@ -108,12 +111,26 @@ get_kdump_confs() {
         esac
     done < "$KDUMP_CONF_PARSED"
 
-    if [ -z "$CORE_COLLECTOR" ]; then
-        CORE_COLLECTOR="$DEFAULT_CORE_COLLECTOR"
-        if is_ssh_dump_target || is_raw_dump_target; then
-            CORE_COLLECTOR="$CORE_COLLECTOR -F"
-        fi
-    fi
+    case $CORE_COLLECTOR in
+        *makedumpfile*)
+            # Ensure no -F in makedumpfile by default.
+            CORE_COLLECTOR=$(echo "$CORE_COLLECTOR" | sed -e "s/-F//g")
+            if is_ssh_dump_target || is_raw_dump_target; then
+                CORE_COLLECTOR="$CORE_COLLECTOR -F"
+            fi
+            THREADS=$(nproc)
+            if [ "$THREADS" -gt 1 ]; then
+                case "$CORE_COLLECTOR" in
+                    *-F* | *-E*) ;;
+
+                    *)
+                        CORE_COLLECTOR="$CORE_COLLECTOR --num-threads=$THREADS"
+                        ;;
+                esac
+            fi
+            ;;
+    esac
+
 }
 
 # store the kexec kernel log to a file.
@@ -144,17 +161,6 @@ dump_fs() {
             return 1
         fi
     fi
-
-    # Remove -F in makedumpfile case. We don't want a flat format dump here.
-    case $CORE_COLLECTOR in
-        *makedumpfile*)
-            CORE_COLLECTOR=$(echo "$CORE_COLLECTOR" | sed -e "s/-F//g")
-            THREADS=$(nproc)
-            if [ "$THREADS" -gt 1 ]; then
-                CORE_COLLECTOR="$CORE_COLLECTOR --num-threads=$THREADS"
-            fi
-            ;;
-    esac
 
     if [ -z "$KDUMP_TEST_ID" ]; then
         _dump_fs_path=$(echo "$1/$KDUMP_PATH/$HOST_IP-$DATEDIR/" | tr -s /)
@@ -372,6 +378,25 @@ do_kdump_post() {
     fi
 }
 
+do_kdump_emergency() {
+    if [ -d /etc/kdump/emergency.d ]; then
+        for file in /etc/kdump/emergency.d/*; do
+            "$file"
+            _ret=$?
+            if [ $_ret -ne 0 ]; then
+                derror "$file exited with $_ret status"
+            fi
+        done
+    fi
+
+    if [ -n "$KDUMP_EMERGENCY" ]; then
+        "$KDUMP_EMERGENCY"
+        _ret=$?
+        if [ $_ret -ne 0 ]; then
+            derror "$KDUMP_EMERGENCY exited with $_ret status"
+        fi
+    fi
+}
 # $1: block target, eg. /dev/sda
 dump_raw() {
     [ -b "$1" ] || return 1
@@ -382,13 +407,6 @@ dump_raw() {
         _src_size=$(stat --format %s /proc/vmcore)
         _src_size_mb=$((_src_size / 1048576))
         /kdumpscripts/monitor_dd_progress.sh $_src_size_mb &
-    fi
-
-    if echo "$CORE_COLLECTOR" | grep -q makedumpfile; then
-        THREADS=$(nproc)
-        if [ "$THREADS" -gt 1 ]; then
-            CORE_COLLECTOR="$CORE_COLLECTOR --num-threads=$THREADS"
-        fi
     fi
 
     dinfo "saving vmcore"
@@ -646,6 +664,7 @@ kdump_test_init() {
 
 if [ "$1" = "--error-handler" ]; then
     get_kdump_confs
+    do_kdump_emergency
     do_failure_action
     save_log
     do_final_action

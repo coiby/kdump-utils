@@ -6,7 +6,11 @@
 # Written by Cong Wang <amwang@redhat.com>
 #
 
-[[ -n $debug ]] && set -x
+if [[ $1 == --debug ]]; then
+	set -x
+	PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]-}): '
+	shift
+fi
 
 if [[ -f /etc/sysconfig/kdump ]]; then
 	# shellcheck source=/dev/null
@@ -32,7 +36,11 @@ SSH_KEY_LOCATION=$DEFAULT_SSHKEY
 SAVE_PATH=$(get_save_path)
 
 declare -a dracut_args
-dracut_args+=(--quiet)
+if [[ -n $debug ]]; then
+	dracut_args+=(--debug)
+else
+	dracut_args+=(--quiet)
+fi
 dracut_args+=(--hostonly)
 dracut_args+=(--hostonly-cmdline)
 dracut_args+=(--hostonly-i18n)
@@ -184,8 +192,8 @@ check_size()
 	esac || perror_exit "Check dump target size failed"
 
 	if [[ $avail -lt $memtotal ]]; then
-		dwarn "Warning: There might not be enough space to save a vmcore."
-		dwarn "         The size of $2 should be greater than $memtotal kilo bytes."
+		dwarn "There might not be enough space to save a vmcore."
+		dwarn "The size of $2 should be greater than $memtotal kilo bytes."
 	fi
 }
 
@@ -282,7 +290,7 @@ verify_core_collector()
 
 	if [[ $_cmd != "makedumpfile" ]]; then
 		if is_raw_dump_target; then
-			dwarn "Warning: specifying a non-makedumpfile core collector, you will have to recover the vmcore manually."
+			dwarn "Specifying a non-makedumpfile core collector, you will have to recover the vmcore manually."
 		fi
 		return
 	fi
@@ -433,8 +441,9 @@ if ! is_fadump_capable; then
 	# to /sysroot beforehand.
 	if [[ $(cat /proc/sys/crypto/fips_enabled 2> /dev/null) == 1 ]]; then
 		_boot_source=$(findmnt -n -o SOURCE --target /boot)
+		_disk_persistent=$(get_persistent_dev "$_boot_source")
 		if mountpoint -q /boot; then
-			dracut_args+=(--add-device "$_boot_source")
+			dracut_args+=(--add-device "$_disk_persistent")
 		else
 			add_mount "$_boot_source"
 		fi

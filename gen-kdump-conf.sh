@@ -27,9 +27,9 @@ generate()
 #             overwritten to the default crahskernel value.
 #
 # raw <partition>
-#           - Will dd /proc/vmcore into <partition>.
-#             Use persistent device names for partition devices,
-#             such as /dev/vg/<devname>.
+#           - The 'raw' dump target is deprecated and will be removed in a future
+#             release. Please migrate to a filesystem-based dump target (e.g., ext4,
+#             xfs, nfs, or ssh).
 #
 # nfs <nfs mount>
 #           - Will mount nfs to <mnt>, and copy /proc/vmcore to
@@ -89,6 +89,13 @@ generate()
 #
 #             For core_collector format details, you can refer to
 #             kexec-kdump-howto.txt or kdump.conf manpage.
+#
+# kdump_emergency <binary | script>
+#           - This directive allows you to run a specified executable
+#             in emergency mode after an error in the kdump environment occurs.
+#             All files under /etc/kdump/emergency.d are collectively sorted
+#             and executed in lexical order, before binary or script
+#             specified kdump_emergency parameter is executed.
 #
 # kdump_post <binary | script>
 #           - This directive allows you to run a executable binary
@@ -171,7 +178,6 @@ generate()
 #             (this option is mandatory to enable fence_kdump).
 #
 
-#raw /dev/vg/lv_kdump
 #ext4 /dev/vg/lv_kdump
 #ext4 LABEL=/boot
 #ext4 UUID=03138356-5e61-4ab3-b58e-27507ac41937
