@@ -2,9 +2,6 @@ summary: Kdump LUKS encrypted local dumping tests
 
 provision:
     how: artemis
-    hardware:
-        disk:
-            - size: ">= 40 GB"
     kickstart:
       metadata: "no_autopart"
       script: |
@@ -18,10 +15,10 @@ provision:
         # System partitions
         part /boot --fstype="ext4" --size=1024
         part swap --size=4096
-        part / --fstype="ext4" --size=20000
 
         # Reserve an empty partition for LUKS
         part None --size=2048
+        part / --fstype="ext4" --size=20480 --grow
 
 adjust+:
   - when: arch == s390x
